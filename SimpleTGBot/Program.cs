@@ -7,5 +7,7 @@ public static class Program
     {
         TelegramBot telegramBot = new TelegramBot();
         await telegramBot.Run();
+
+
     }
 }
