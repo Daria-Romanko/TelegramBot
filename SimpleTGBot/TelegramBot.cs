@@ -88,8 +88,7 @@ public class TelegramBot
 
         ReplyKeyboardMarkup replyKeyboardMarkup = new(new[]
         {
-            new KeyboardButton[] { "Привет" },
-            new KeyboardButton[] { "Пока" },
+            new KeyboardButton[] { "О боте" },          
             new KeyboardButton[] { "Рандомный фильм" },
             new KeyboardButton[] { "Топ 10" }
         });
@@ -110,7 +109,7 @@ public class TelegramBot
         Message sentMessage;
         var m = movies.Random();
 
-        if ((new string[] { "/start", "Привет"}).Contains(message.Text) )
+        if ((new string[] { "/start", "Привет", "О боте" }).Contains(message.Text) )
         {
             sentMessage = await botClient.SendTextMessageAsync(
                 chatId: chatId,
@@ -121,7 +120,7 @@ public class TelegramBot
                 "\n/random - выводит рандомный фильм" +
                 "\n/top10 - выводит 10 самых лучших фильмов" +
                 "\n/searchMovie - находит фильм по запросу"+
-                "\nТакже можно перейти в репозиторий нажав кнопку ниже.",
+                "\nТакже можно перейти в репозиторий:",
                 replyMarkup: inlineKeyboard1,
                 cancellationToken: cancellationToken);
             return;
@@ -142,7 +141,7 @@ public class TelegramBot
                 replyMarkup: replyKeyboardMarkup,
                 cancellationToken: cancellationToken);
         }
-        if(message.Text == "Рандомный фильм")
+        if((new string[] { "/random", "Рандомный фильм" }).Contains(message.Text))
         {         
             sentMessage = await botClient.SendPhotoAsync(
             chatId: chatId,
@@ -154,15 +153,7 @@ public class TelegramBot
             return;
 
         }
-        if(message.Text == "Пока")
-        {
-            sentMessage = await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "Пока, надеюсь вы вернётесь!",
-                replyMarkup: replyKeyboardMarkup,
-                cancellationToken: cancellationToken);
-            return;
-        }
+        
 
         //if (update.CallbackQuery.Data == "инфа")
         //{
