@@ -1,4 +1,6 @@
-﻿using System.Reflection.Metadata.Ecma335;
+﻿using System.Net.Mime;
+using System.Reflection.Metadata.Ecma335;
+using Telegram.Bot.Requests;
 
 namespace SimpleTGBot;
 
@@ -40,7 +42,11 @@ public class TelegramBot
         // Будем получать только сообщения. При желании можно поработать с другими событиями.
         ReceiverOptions receiverOptions = new ReceiverOptions()
         {
-            AllowedUpdates = new[] { UpdateType.Message }
+            AllowedUpdates = new[]
+            {
+                UpdateType.Message,
+                UpdateType.CallbackQuery
+            }
         };
 
         // Привязываем все обработчики и начинаем принимать сообщения для бота
@@ -50,7 +56,7 @@ public class TelegramBot
             receiverOptions: receiverOptions,
             cancellationToken: cts.Token
         );
-        
+
         // Проверяем что токен верный и получаем информацию о боте
         var me = await botClient.GetMeAsync(cancellationToken: cts.Token);
         Console.WriteLine($"Бот @{me.Username} запущен.\nДля остановки нажмите клавишу Esc...");
@@ -70,10 +76,26 @@ public class TelegramBot
     /// <param name="cancellationToken">Служебный токен для работы с многопоточностью</param>
     async Task OnMessageReceived(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
+        
+        if (update.CallbackQuery?.Data == "инфа")
+        {
+            // sentMessage = await botClient.SendTextMessageAsync(
+            //         chatId: chatId,
+            //         text: m.Director + m.Screenwriter + m.Actors,
+            // );
+            // Мы обязательно должны ответить на коллбек, чтобы в клиенте перестала проигрываться анимация.
+            // Для наглядности пусть выскакивает алёрт
+            await botClient.AnswerCallbackQueryAsync(
+                update.CallbackQuery.Id, 
+                "Оно работает!",
+                cancellationToken: cancellationToken
+            );
+        }
+        
         // Работаем только с сообщениями. Остальные события игнорируем
         var message = update.Message;
      
-        if (message.Text is not { } messageText || update.CallbackQuery is not null )
+        if (message?.Text is not { } messageText )
         {
             return;
         }
@@ -153,19 +175,6 @@ public class TelegramBot
             return;
 
         }
-        
-
-        //if (update.CallbackQuery.Data == "инфа")
-        //{
-        //    sentMessage = await botClient.SendTextMessageAsync(
-        //            chatId: chatId,
-        //            text: m.Director + m.Screenwriter + m.Actors,
-        //            replyMarkup: inlineKeyboard2
-        //            );
-        //    return;
-        //}
-
-
 
         // Отправляем обратно то же сообщение, что и получили
         //sentMessage = await botClient.SendTextMessageAsync(
