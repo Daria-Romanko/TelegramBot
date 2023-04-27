@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,7 +11,7 @@ namespace SimpleTGBot
 {
     public class Movies
     {
-        public List<Movie> movies;
+        public List<Movie>? movies;
         public class Movie 
         {
             public string Title;
@@ -18,6 +19,9 @@ namespace SimpleTGBot
             public string Country;
             public double VoteAverage;
             public string Description;
+            public string Director;
+            public string Screenwriter;
+            public string Actors;
             public string Image;
             public Movie(string s)
             {
@@ -28,7 +32,10 @@ namespace SimpleTGBot
                 Country = movie[3];
                 VoteAverage = double.Parse(movie[4].Replace(".", ","));
                 Description = movie[5];
-                //Image = movie[];
+                Director = movie[6];
+                Screenwriter = movie[7];
+                Actors = movie[8];
+                Image = movie[9].Trim('\'');
             }
         }
 

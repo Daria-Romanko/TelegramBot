@@ -1,18 +1,24 @@
 ﻿using System.Reflection.Metadata.Ecma335;
 
 namespace SimpleTGBot;
+
+using System.Linq;
+using System.Threading;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using static SimpleTGBot.Movies;
 
 public class TelegramBot
 {
     // Токен TG-бота. Можно получить у @BotFather
-    private const string BotToken = "6071463204:AAHzzqQ7WCckEBbTG2yVWO5fQIZ7XsWLLIk";
+    private const string BotToken = "6071463204:AAEbqJU6oii2Rsx3XZjQINyJmbrWHiPHzCc";
 
+    private Movies? movies;
+    private Movies.Movie? m;
     /// <summary>
     /// Инициализирует и обеспечивает работу бота до нажатия клавиши Esc
     /// </summary>
@@ -21,7 +27,9 @@ public class TelegramBot
         // Если вам нужно хранить какие-то данные во время работы бота (массив информации, логи бота,
         // историю сообщений для каждого пользователя), то это всё надо инициализировать в этом методе.
         // TODO: Инициализация необходимых полей
-
+        movies = new Movies();
+        movies.FileConversion("database/kinopoisk-top250.csv");
+        
         // Инициализируем наш клиент, передавая ему токен.
         var botClient = new TelegramBotClient(BotToken);
 
@@ -42,7 +50,7 @@ public class TelegramBot
             receiverOptions: receiverOptions,
             cancellationToken: cts.Token
         );
-
+        
         // Проверяем что токен верный и получаем информацию о боте
         var me = await botClient.GetMeAsync(cancellationToken: cts.Token);
         Console.WriteLine($"Бот @{me.Username} запущен.\nДля остановки нажмите клавишу Esc...");
@@ -64,16 +72,8 @@ public class TelegramBot
     {
         // Работаем только с сообщениями. Остальные события игнорируем
         var message = update.Message;
-        if (message is null)
-        {
-            return;
-        }
-        // Будем обрабатывать только текстовые сообщения.
-        // При желании можно обрабатывать стикеры, фото, голосовые и т. д.
-        //
-        // Обратите внимание на использованную конструкцию. Она эквивалентна проверке на null, приведённой выше.
-        // Подробнее об этом синтаксисе: https://medium.com/@mattkenefick/snippets-in-c-more-ways-to-check-for-null-4eb735594c09
-        if (message.Text is not { } messageText)
+     
+        if (message.Text is not { } messageText || update.CallbackQuery is not null )
         {
             return;
         }
@@ -90,64 +90,96 @@ public class TelegramBot
         {
             new KeyboardButton[] { "Привет" },
             new KeyboardButton[] { "Пока" },
-            new KeyboardButton[] {"Рандомный фильм"}
-        })
-        {
-            ResizeKeyboard = true
-        };
-        Message sentMessage;
-        switch (messageText)
-        {
-            case "/start":
-                sentMessage = await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "Привет!",
-                replyMarkup: replyKeyboardMarkup,
-                cancellationToken: cancellationToken);
-                break;
-            case "Привет":
-                sentMessage = await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "Привет!",
-                replyMarkup: replyKeyboardMarkup,
-                cancellationToken: cancellationToken);
-                break;
-            case "Рандомный фильм":
-                var movies = new Movies();
-                movies.FileConversion("C:\\Users\\Dashka\\Desktop\\TelegramBot\\SimpleTGBot\\database\\kinopoisk-top250.csv");
-                var m = movies.Random();
+            new KeyboardButton[] { "Рандомный фильм" },
+            new KeyboardButton[] { "Топ 10" }
+        });
 
-                sentMessage = await botClient.SendTextMessageAsync(
+        InlineKeyboardMarkup inlineKeyboard1 = new(new[]
+        {
+            InlineKeyboardButton.WithUrl(
+                text: "Перейти в репозиторий",
+                url: "https://github.com/Daria-Romanko/TelegramBot.git")
+        });
+
+        InlineKeyboardMarkup inlineKeyboard2 = new(new[]
+        {
+           InlineKeyboardButton.WithCallbackData("инфа","инфа"),
+        });
+        
+        
+        Message sentMessage;
+        var m = movies.Random();
+
+        if ((new string[] { "/start", "Привет"}).Contains(message.Text) )
+        {
+            sentMessage = await botClient.SendTextMessageAsync(
                 chatId: chatId,
-                text: m.Title + "\n" + m.Description,
+                text: "Привет! Этот бот предназначен для поиска фильмов." +
+                "\nВот что может этот бот:"+ 
+                "\n/start - выводит информацию о боте" +
+                "\n/menu - выводит меню внизу экрана"+
+                "\n/random - выводит рандомный фильм" +
+                "\n/top10 - выводит 10 самых лучших фильмов" +
+                "\n/searchMovie - находит фильм по запросу"+
+                "\nТакже можно перейти в репозиторий нажав кнопку ниже.",
+                replyMarkup: inlineKeyboard1,
+                cancellationToken: cancellationToken);
+            return;
+        }
+        if((new string[] { "/menu", "Меню" }).Contains(message.Text))
+        {
+            sentMessage = await botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "Внизу экрана появилось меню",
                 replyMarkup: replyKeyboardMarkup,
                 cancellationToken: cancellationToken);
-                break;
-            case "Пока":
-                sentMessage = await botClient.SendTextMessageAsync(
+        }
+        if((new string[] { "/top10", "Топ 10" }).Contains(message.Text))
+        {
+            sentMessage = await botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: Extensions.Top10(movies.movies),
+                replyMarkup: replyKeyboardMarkup,
+                cancellationToken: cancellationToken);
+        }
+        if(message.Text == "Рандомный фильм")
+        {         
+            sentMessage = await botClient.SendPhotoAsync(
+            chatId: chatId,
+            photo: m.Image,
+            caption: "<b>" + m.Title + "</b>" + m.Description,
+            parseMode: ParseMode.Html,
+            replyMarkup: inlineKeyboard2,
+            cancellationToken: cancellationToken);
+            return;
+
+        }
+        if(message.Text == "Пока")
+        {
+            sentMessage = await botClient.SendTextMessageAsync(
                 chatId: chatId,
                 text: "Пока, надеюсь вы вернётесь!",
                 replyMarkup: replyKeyboardMarkup,
                 cancellationToken: cancellationToken);
-                //var pic = await botClient.SendPhotoAsync(
-                //chatId: chatId,
-                //photo: m.Image,
-                //caption: m.Title + m.Description,
-                //cancellationToken: cancellationToken);
-                break;
-            default:
-                await botClient.SendTextMessageAsync(
-                    chatId: chatId,
-                    text: "",
-                    replyMarkup: replyKeyboardMarkup);
-                break;
+            return;
         }
-       
 
-        //// Отправляем обратно то же сообщение, что и получили
-        //Message sentMessage = await botClient.SendTextMessageAsync(
+        //if (update.CallbackQuery.Data == "инфа")
+        //{
+        //    sentMessage = await botClient.SendTextMessageAsync(
+        //            chatId: chatId,
+        //            text: m.Director + m.Screenwriter + m.Actors,
+        //            replyMarkup: inlineKeyboard2
+        //            );
+        //    return;
+        //}
+
+
+
+        // Отправляем обратно то же сообщение, что и получили
+        //sentMessage = await botClient.SendTextMessageAsync(
         //    chatId: chatId,
-        //    text: "Ты написал:\n" + messageText,
+        //    text: "Ты написал:\n" + message.Text,
         //    cancellationToken: cancellationToken);
     }
 
@@ -161,18 +193,39 @@ public class TelegramBot
     Task OnErrorOccured(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
     {
         //В зависимости от типа исключения печатаем различные сообщения об ошибке
-        //var errorMessage = exception switch
-        //{
-        //    ApiRequestException apiRequestException
-        //        => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+        var errorMessage = exception switch
+        {
+            ApiRequestException apiRequestException
+                => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
 
-        //    _ => exception.ToString()
-        //};
+            _ => exception.ToString()
+        };
 
-        //Console.WriteLine(errorMessage);
+        Console.WriteLine(errorMessage);
 
         //Завершаем работу
         return Task.CompletedTask;
-        
+
     }
+
+    /// <summary>
+    ///// Отправляет рандомный фильм
+    ///// </summary>
+    ///// <param name="botClient"></param>
+    ///// <param name="message"></param>
+    ///// <param name="collectionItem"></param>
+    ///// <param name="cancellationToken"></param>
+    ///// <returns></returns>
+    //private static async Task SendRandomMovie(ITelegramBotClient botClient, long chatId, Update update, CancellationToken cancellationToken)
+    //{
+        
+              
+              
+    //}
+
+    
+        
+    
+
+    
 }
