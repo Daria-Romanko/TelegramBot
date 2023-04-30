@@ -17,10 +17,14 @@ using static SimpleTGBot.Movies;
 public class TelegramBot
 {
     // Токен TG-бота. Можно получить у @BotFather
-    private const string BotToken = "6071463204:AAEbqJU6oii2Rsx3XZjQINyJmbrWHiPHzCc";
+    private const string BotToken = "6071463204:AAFweciMMIF1XIGT3uSntgWzdDHOs9WIMgo";
 
+    private ReplyKeyboardMarkup? replyKeyboardMarkup;
+    private InlineKeyboardMarkup? urlInlineKeyboard;
+    private InlineKeyboardMarkup? inlineKeyboard1;
+    private InlineKeyboardMarkup? inlineKeyboard2;
     private Movies? movies;
-    private Movies.Movie? m;
+    private Movies.Movie? movie;
     /// <summary>
     /// Инициализирует и обеспечивает работу бота до нажатия клавиши Esc
     /// </summary>
@@ -31,7 +35,37 @@ public class TelegramBot
         // TODO: Инициализация необходимых полей
         movies = new Movies();
         movies.FileConversion("database/kinopoisk-top250.csv");
-        
+
+        replyKeyboardMarkup = new(new[]
+        {
+            new KeyboardButton[] { "О боте" },
+            new KeyboardButton[] { "Рандомный фильм" },
+            new KeyboardButton[] { "Топ 10" }
+        });
+
+        urlInlineKeyboard = new(new[]
+        {
+            InlineKeyboardButton.WithUrl(
+                text: "Перейти в репозиторий",
+                url: "https://github.com/Daria-Romanko/TelegramBot.git")
+        });
+
+        inlineKeyboard1 = new(new[]
+        {
+           InlineKeyboardButton.WithUrl(
+                text: "Трейлер фильма",
+                url: "https://www.youtube.com/watch?v=o-YBDTqX_ZU"),
+           InlineKeyboardButton.WithCallbackData("->", "next")
+        });
+
+        inlineKeyboard2 = new(new[]
+        {
+           InlineKeyboardButton.WithUrl(
+                text: "Трейлер фильма",
+                url: "https://www.youtube.com/watch?v=o-YBDTqX_ZU"),
+           InlineKeyboardButton.WithCallbackData("<-", "prev")
+        });
+
         // Инициализируем наш клиент, передавая ему токен.
         var botClient = new TelegramBotClient(BotToken);
 
@@ -76,107 +110,113 @@ public class TelegramBot
     /// <param name="cancellationToken">Служебный токен для работы с многопоточностью</param>
     async Task OnMessageReceived(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
-        
-        if (update.CallbackQuery?.Data == "инфа")
-        {
-            // sentMessage = await botClient.SendTextMessageAsync(
-            //         chatId: chatId,
-            //         text: m.Director + m.Screenwriter + m.Actors,
-            // );
-            // Мы обязательно должны ответить на коллбек, чтобы в клиенте перестала проигрываться анимация.
-            // Для наглядности пусть выскакивает алёрт
-            await botClient.AnswerCallbackQueryAsync(
-                update.CallbackQuery.Id, 
-                "Оно работает!",
-                cancellationToken: cancellationToken
-            );
-        }
-        
-        // Работаем только с сообщениями. Остальные события игнорируем
-        var message = update.Message;
-     
-        if (message?.Text is not { } messageText )
+        if (update.Message is null && update.CallbackQuery is null)
         {
             return;
         }
 
         // Получаем ID чата, в которое пришло сообщение. Полезно, чтобы отличать пользователей друг от друга.
-        var chatId = message.Chat.Id;
+        long chatId = 0;
 
-        // Печатаем на консоль факт получения сообщения
-        Console.WriteLine($"Получено сообщение в чате {chatId}: '{messageText}'");
-
-        // TODO: Обработка пришедших сообщений
-
-        ReplyKeyboardMarkup replyKeyboardMarkup = new(new[]
+        if (update.Message != null)
         {
-            new KeyboardButton[] { "О боте" },          
-            new KeyboardButton[] { "Рандомный фильм" },
-            new KeyboardButton[] { "Топ 10" }
-        });
-
-        InlineKeyboardMarkup inlineKeyboard1 = new(new[]
+            chatId = update.Message.Chat.Id;
+        }
+        else if (update.CallbackQuery != null)
         {
-            InlineKeyboardButton.WithUrl(
-                text: "Перейти в репозиторий",
-                url: "https://github.com/Daria-Romanko/TelegramBot.git")
-        });
+            chatId = update.CallbackQuery.Message.Chat.Id;
+        }
 
-        InlineKeyboardMarkup inlineKeyboard2 = new(new[]
+        if (update.Type == UpdateType.Message)
         {
-           InlineKeyboardButton.WithCallbackData("инфа","инфа"),
-        });
-        
-        
-        Message sentMessage;
-        var m = movies.Random();
+            var message = update.Message;
+            var messageText = message?.Text;
 
-        if ((new string[] { "/start", "Привет", "О боте" }).Contains(message.Text) )
-        {
-            sentMessage = await botClient.SendTextMessageAsync(
+            Console.WriteLine($"Получено сообщение в чате {chatId}: '{messageText}'");
+
+            if ((new string[] { "/start", "Привет", "О боте" }).Contains(message.Text))
+            {
+                Message sentMessage = await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Привет! Этот бот предназначен для поиска фильмов." +
+                    "\nВот что может этот бот:" +
+                    "\n/start - выводит информацию о боте" +
+                    "\n/menu - выводит меню внизу экрана" +
+                    "\n/random - выводит рандомный фильм" +
+                    "\n/top10 - выводит 10 самых лучших фильмов" +
+                    "\n/searchMovie - находит фильм по запросу" +
+                    "\nТакже можно перейти в репозиторий:",
+                    replyMarkup: urlInlineKeyboard,
+                    cancellationToken: cancellationToken);
+                return;
+            }
+            if ((new string[] { "/menu", "Меню" }).Contains(message.Text))
+            {
+                Message sentMessage = await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Внизу экрана появилось меню",
+                    replyMarkup: replyKeyboardMarkup,
+                    cancellationToken: cancellationToken);
+            }
+            if ((new string[] { "/top10", "Топ 10" }).Contains(message.Text))
+            {
+                Message sentMessage = await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: Extensions.Top10(movies.movies),
+                    replyMarkup: replyKeyboardMarkup,
+                    cancellationToken: cancellationToken);
+            }
+            if ((new string[] { "/random", "Рандомный фильм" }).Contains(message.Text))
+            {
+                movie = movies.Random();
+                Message sentMessage = await botClient.SendPhotoAsync(
                 chatId: chatId,
-                text: "Привет! Этот бот предназначен для поиска фильмов." +
-                "\nВот что может этот бот:"+ 
-                "\n/start - выводит информацию о боте" +
-                "\n/menu - выводит меню внизу экрана"+
-                "\n/random - выводит рандомный фильм" +
-                "\n/top10 - выводит 10 самых лучших фильмов" +
-                "\n/searchMovie - находит фильм по запросу"+
-                "\nТакже можно перейти в репозиторий:",
-                replyMarkup: inlineKeyboard1,
+                photo: movie.Image,
                 cancellationToken: cancellationToken);
-            return;
+                sentMessage = await botClient.SendTextMessageAsync(
+                     chatId: chatId,
+                     text: "<b>" + movie.Title + "</b>" + "\n" + movie.Description.Replace(';', ','),
+                     parseMode: ParseMode.Html,
+                     replyMarkup: inlineKeyboard1, 
+                     cancellationToken: cancellationToken);
+                return;
+
+            }
         }
-        if((new string[] { "/menu", "Меню" }).Contains(message.Text))
+        if (update.Type == UpdateType.CallbackQuery)
         {
-            sentMessage = await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "Внизу экрана появилось меню",
-                replyMarkup: replyKeyboardMarkup,
-                cancellationToken: cancellationToken);
-        }
-        if((new string[] { "/top10", "Топ 10" }).Contains(message.Text))
-        {
-            sentMessage = await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: Extensions.Top10(movies.movies),
-                replyMarkup: replyKeyboardMarkup,
-                cancellationToken: cancellationToken);
-        }
-        if((new string[] { "/random", "Рандомный фильм" }).Contains(message.Text))
-        {         
-            sentMessage = await botClient.SendPhotoAsync(
-            chatId: chatId,
-            photo: m.Image,
-            caption: "<b>" + m.Title + "</b>" + m.Description,
-            parseMode: ParseMode.Html,
-            replyMarkup: inlineKeyboard2,
-            cancellationToken: cancellationToken);
-            return;
+            if (update.CallbackQuery?.Data == "next")
+            {                              
+                await botClient.EditMessageTextAsync(
+                    chatId: chatId,
+                    messageId: update.CallbackQuery.Message.MessageId,
+                    text: "<b>" + "Год производства: " + "</b>" + movie.Year +
+                          "<b>" + "\nСтрана: " + "</b>" + movie.Country +
+                          "<b>" + "\nРежиссер: " + "</b>" + movie.Director.Replace(';', ',') +
+                          "<b>" + "\nВ главных ролях: " + "</b>" + movie.Actors.Replace(';', ','),
+                    parseMode: ParseMode.Html,
+                    replyMarkup: inlineKeyboard2,
+                    cancellationToken: cancellationToken);                
+            }
+            if (update.CallbackQuery?.Data == "prev")
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: chatId,
+                    messageId: update.CallbackQuery.Message.MessageId,
+                    text: "<b>" + movie.Title + "</b>" + "\n" + movie.Description.Replace(';', ','),
+                    parseMode: ParseMode.Html,
+                    replyMarkup: inlineKeyboard1,
+                    cancellationToken: cancellationToken);
+            }
 
         }
 
-        // Отправляем обратно то же сообщение, что и получили
+
+
+
+
+
+        //Отправляем обратно то же сообщение, что и получили
         //sentMessage = await botClient.SendTextMessageAsync(
         //    chatId: chatId,
         //    text: "Ты написал:\n" + message.Text,
@@ -208,24 +248,5 @@ public class TelegramBot
 
     }
 
-    /// <summary>
-    ///// Отправляет рандомный фильм
-    ///// </summary>
-    ///// <param name="botClient"></param>
-    ///// <param name="message"></param>
-    ///// <param name="collectionItem"></param>
-    ///// <param name="cancellationToken"></param>
-    ///// <returns></returns>
-    //private static async Task SendRandomMovie(ITelegramBotClient botClient, long chatId, Update update, CancellationToken cancellationToken)
-    //{
-        
-              
-              
-    //}
 
-    
-        
-    
-
-    
 }
