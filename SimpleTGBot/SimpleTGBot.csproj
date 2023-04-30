@@ -16,6 +16,9 @@
       <None Update="database\kinopoisk-top250.csv">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Update="files\kinopoisk-top250.csv">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

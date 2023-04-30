@@ -122,7 +122,7 @@ namespace SimpleTGBot
 
             foreach (var m in movies)
             {
-                if (m.Country == country)
+                if (m.Country.ToLower() == country.ToLower())
                 {
                     l.Add(m);
                 }
@@ -147,11 +147,12 @@ namespace SimpleTGBot
         /// <returns></returns>
         public Movie SearchMovieAverage(double voteAverage)
         {
-            foreach (var m in movies)
+            
+            for(int i = movies.Count- 1; i >= 0;i--)
             {
-                if (m.VoteAverage <= voteAverage)
+                if (movies[i].VoteAverage >= voteAverage)
                 {
-                    return m;
+                    return movies[i];
                 }
 
             }
@@ -167,7 +168,7 @@ namespace SimpleTGBot
             var l = new List<Movie>();
             foreach (var m in movies)
             {
-                if (m.Director.Contains(director))
+                if (m.Director.ToLower().Contains(director.ToLower()))
                 {
                     l.Add(m);
                 }
