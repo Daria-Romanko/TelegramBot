@@ -5,12 +5,14 @@ using Telegram.Bot.Requests;
 namespace SimpleTGBot;
 
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using static SimpleTGBot.Movies;
 
@@ -20,11 +22,19 @@ public class TelegramBot
     private const string BotToken = "6071463204:AAFweciMMIF1XIGT3uSntgWzdDHOs9WIMgo";
 
     private ReplyKeyboardMarkup? replyKeyboardMarkup;
+    private InlineKeyboardMarkup? searchMovieInlineKeyboard;
     private InlineKeyboardMarkup? urlInlineKeyboard;
     private InlineKeyboardMarkup? inlineKeyboard1;
     private InlineKeyboardMarkup? inlineKeyboard2;
+
     private Movies? movies;
     private Movies.Movie? movie;
+
+    private bool checkYear;
+    private bool checkCountry;
+    private bool checkVoteAverage;
+    private bool checkDirector;
+
     /// <summary>
     /// Инициализирует и обеспечивает работу бота до нажатия клавиши Esc
     /// </summary>
@@ -33,23 +43,34 @@ public class TelegramBot
         // Если вам нужно хранить какие-то данные во время работы бота (массив информации, логи бота,
         // историю сообщений для каждого пользователя), то это всё надо инициализировать в этом методе.
         // TODO: Инициализация необходимых полей
+        
         movies = new Movies();
         movies.FileConversion("database/kinopoisk-top250.csv");
 
+        checkYear = false;
+        checkCountry = false;
+        checkVoteAverage = false;
+        checkDirector = false;
+
         replyKeyboardMarkup = new(new[]
         {
-            new KeyboardButton[] { "О боте" },
-            new KeyboardButton[] { "Рандомный фильм" },
-            new KeyboardButton[] { "Топ 10" }
+            new KeyboardButton[] { "О боте", "Найти фильм"},
+            new KeyboardButton[] { "Топ 10", "Рандомный фильм" }        
         });
-
+        replyKeyboardMarkup.ResizeKeyboard = true;
+        searchMovieInlineKeyboard = new(new[]
+        {          
+           InlineKeyboardButton.WithCallbackData("По году", "callback_1"),
+           InlineKeyboardButton.WithCallbackData("По стране", "callback_2"),
+           InlineKeyboardButton.WithCallbackData("По режиссеру", "callback_3"),
+           InlineKeyboardButton.WithCallbackData("По оценке", "callback_4")
+        });
         urlInlineKeyboard = new(new[]
         {
             InlineKeyboardButton.WithUrl(
                 text: "Перейти в репозиторий",
                 url: "https://github.com/Daria-Romanko/TelegramBot.git")
         });
-
         inlineKeyboard1 = new(new[]
         {
            InlineKeyboardButton.WithUrl(
@@ -57,7 +78,6 @@ public class TelegramBot
                 url: "https://www.youtube.com/watch?v=o-YBDTqX_ZU"),
            InlineKeyboardButton.WithCallbackData("->", "next")
         });
-
         inlineKeyboard2 = new(new[]
         {
            InlineKeyboardButton.WithUrl(
@@ -134,7 +154,7 @@ public class TelegramBot
 
             Console.WriteLine($"Получено сообщение в чате {chatId}: '{messageText}'");
 
-            if ((new string[] { "/start", "Привет", "О боте" }).Contains(message.Text))
+            if ((new string[] { "/start", "Привет", "О боте" }).Contains(messageText))
             {
                 Message sentMessage = await botClient.SendTextMessageAsync(
                     chatId: chatId,
@@ -150,7 +170,7 @@ public class TelegramBot
                     cancellationToken: cancellationToken);
                 return;
             }
-            if ((new string[] { "/menu", "Меню" }).Contains(message.Text))
+            if ((new string[] { "/menu", "Меню" }).Contains(messageText))
             {
                 Message sentMessage = await botClient.SendTextMessageAsync(
                     chatId: chatId,
@@ -158,15 +178,15 @@ public class TelegramBot
                     replyMarkup: replyKeyboardMarkup,
                     cancellationToken: cancellationToken);
             }
-            if ((new string[] { "/top10", "Топ 10" }).Contains(message.Text))
+            if ((new string[] { "/top10", "Топ 10" }).Contains(messageText))
             {
                 Message sentMessage = await botClient.SendTextMessageAsync(
                     chatId: chatId,
-                    text: Extensions.Top10(movies.movies),
+                    text: movies.Top10(),
                     replyMarkup: replyKeyboardMarkup,
                     cancellationToken: cancellationToken);
             }
-            if ((new string[] { "/random", "Рандомный фильм" }).Contains(message.Text))
+            if ((new string[] { "/random", "Рандомный фильм" }).Contains(messageText))
             {
                 movie = movies.Random();
                 Message sentMessage = await botClient.SendPhotoAsync(
@@ -180,13 +200,141 @@ public class TelegramBot
                      replyMarkup: inlineKeyboard1, 
                      cancellationToken: cancellationToken);
                 return;
-
             }
+            if ((new string[] { "/searchMovie", "Найди фильм", "Найти фильм" }).Contains(messageText))
+            {
+                Message sentMessage = await botClient.SendTextMessageAsync(
+                     chatId: chatId,
+                     text: "Выберите как будете искать фильм.",
+                     replyMarkup: searchMovieInlineKeyboard,
+                     cancellationToken: cancellationToken);               
+            }
+            if(checkYear == true)
+            {
+                checkYear = false;
+
+                movie = movies.SearchMovieYear(int.Parse(messageText));
+
+                if(movie == null) 
+                {
+                    await botClient.SendTextMessageAsync(
+                         chatId: chatId,
+                         text: "К сожалению фильм не найден, попробуйте еще раз. \n Выберите как будете искать фильм.",
+                         parseMode: ParseMode.Html,
+                         replyMarkup: inlineKeyboard1,
+                         cancellationToken: cancellationToken);
+                    return;
+                }
+
+                Message sentMessage = await botClient.SendPhotoAsync(
+                chatId: chatId,
+                photo: movie.Image,
+                cancellationToken: cancellationToken);
+                sentMessage = await botClient.SendTextMessageAsync(
+                     chatId: chatId,
+                     text: "<b>" + movie.Title + "</b>" + "\n" + movie.Description.Replace(';', ','),
+                     parseMode: ParseMode.Html,
+                     replyMarkup: inlineKeyboard1,
+                     cancellationToken: cancellationToken);                
+                
+                return;
+            }
+            if(checkCountry == true)
+            {
+                checkCountry = false;
+
+                movie = movies.SearchMovieCountry(messageText);
+
+                if (movie == null)
+                {
+                    await botClient.SendTextMessageAsync(
+                         chatId: chatId,
+                         text: "К сожалению фильм не найден, попробуйте еще раз. \n Выберите как будете искать фильм.",
+                         parseMode: ParseMode.Html,
+                         replyMarkup: searchMovieInlineKeyboard,
+                         cancellationToken: cancellationToken);
+                    return;
+                }
+
+                Message sentMessage = await botClient.SendPhotoAsync(
+                chatId: chatId,
+                photo: movie.Image,
+                cancellationToken: cancellationToken);
+                sentMessage = await botClient.SendTextMessageAsync(
+                     chatId: chatId,
+                     text: "<b>" + movie.Title + "</b>" + "\n" + movie.Description.Replace(';', ','),
+                     parseMode: ParseMode.Html,
+                     replyMarkup: inlineKeyboard1,
+                     cancellationToken: cancellationToken);
+                
+                return;
+            }
+            if(checkVoteAverage == true)
+            {
+                checkVoteAverage = false;
+
+                movie = movies.SearchMovieAverage(double.Parse(messageText));
+                
+                if (movie == null)
+                {
+                    await botClient.SendTextMessageAsync(
+                         chatId: chatId,
+                         text: "К сожалению фильм не найден, попробуйте еще раз. \n Выберите как будете искать фильм.",
+                         parseMode: ParseMode.Html,
+                         replyMarkup: searchMovieInlineKeyboard,
+                         cancellationToken: cancellationToken);
+                    return;
+                }
+
+                Message sentMessage = await botClient.SendPhotoAsync(
+                chatId: chatId,
+                photo: movie.Image,
+                cancellationToken: cancellationToken);
+                sentMessage = await botClient.SendTextMessageAsync(
+                     chatId: chatId,
+                     text: "<b>" + movie.Title + "</b>" + "\n" + movie.Description.Replace(';', ','),
+                     parseMode: ParseMode.Html,
+                     replyMarkup: inlineKeyboard1,
+                     cancellationToken: cancellationToken);
+                
+                return;
+            }
+            if(checkDirector == true)
+            {
+                checkDirector = false;
+
+                movie = movies.SearchMovieDirector(messageText);
+                
+                if (movie == null)
+                {
+                    await botClient.SendTextMessageAsync(
+                         chatId: chatId,
+                         text: "К сожалению фильм не найден, попробуйте еще раз. \n Выберите как будете искать фильм.",
+                         parseMode: ParseMode.Html,
+                         replyMarkup: searchMovieInlineKeyboard,
+                         cancellationToken: cancellationToken);
+                    return;
+                }
+
+                Message sentMessage = await botClient.SendPhotoAsync(
+                chatId: chatId,
+                photo: movie.Image,
+                cancellationToken: cancellationToken);
+                sentMessage = await botClient.SendTextMessageAsync(
+                     chatId: chatId,
+                     text: "<b>" + movie.Title + "</b>" + "\n" + movie.Description.Replace(';', ','),
+                     parseMode: ParseMode.Html,
+                     replyMarkup: inlineKeyboard1,
+                     cancellationToken: cancellationToken);
+                checkDirector = false;
+                return;
+            }
+            
         }
         if (update.Type == UpdateType.CallbackQuery)
         {
             if (update.CallbackQuery?.Data == "next")
-            {                              
+            {
                 await botClient.EditMessageTextAsync(
                     chatId: chatId,
                     messageId: update.CallbackQuery.Message.MessageId,
@@ -196,7 +344,7 @@ public class TelegramBot
                           "<b>" + "\nВ главных ролях: " + "</b>" + movie.Actors.Replace(';', ','),
                     parseMode: ParseMode.Html,
                     replyMarkup: inlineKeyboard2,
-                    cancellationToken: cancellationToken);                
+                    cancellationToken: cancellationToken);
             }
             if (update.CallbackQuery?.Data == "prev")
             {
@@ -208,19 +356,40 @@ public class TelegramBot
                     replyMarkup: inlineKeyboard1,
                     cancellationToken: cancellationToken);
             }
-
+            if (update.CallbackQuery?.Data == "callback_1")
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Введите год"
+                    );                         
+                checkYear = true;
+            }
+            if(update.CallbackQuery?.Data == "callback_2")
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Введите страну"
+                    );
+                checkCountry = true;
+            }
+            if (update.CallbackQuery?.Data == "callback_3")
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Введите режиссера"
+                    );
+                checkDirector = true;
+            }
+            if (update.CallbackQuery?.Data == "callback_4")
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Введите оценку"
+                    );
+                checkVoteAverage = true;
+            }
         }
 
-
-
-
-
-
-        //Отправляем обратно то же сообщение, что и получили
-        //sentMessage = await botClient.SendTextMessageAsync(
-        //    chatId: chatId,
-        //    text: "Ты написал:\n" + message.Text,
-        //    cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -248,5 +417,7 @@ public class TelegramBot
 
     }
 
-
+   
+    
+    
 }

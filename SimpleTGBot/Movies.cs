@@ -39,7 +39,10 @@ namespace SimpleTGBot
             }
         }
 
-        //преобразование файла в список фильмов
+        /// <summary>
+        /// Преобразовывает файл в список фильмов.
+        /// </summary>
+        /// <param name="path"></param>
         public void FileConversion(string path)
         {
             movies = new List<Movie>();
@@ -53,6 +56,10 @@ namespace SimpleTGBot
             
         }
        
+        /// <summary>
+        /// Возвращает рандомный фильм.
+        /// </summary>
+        /// <returns></returns>
         public Movie Random()
         {
             var rnd = new Random();
@@ -60,6 +67,122 @@ namespace SimpleTGBot
             return movies[ind];
         }
 
+        /// <summary>
+        /// Возвращет строку с 10 лучшими фильмами.
+        /// </summary>
+        /// <returns></returns>
+        public string Top10()
+        {
+            var s = "";
+            s += "Топ 10 фильмов: \n";
+            for (int i = 0; i < 10; i++)
+            {
+                var m = movies[i];
+                s += $"{i + 1}. {m.Title}. Рейтинг: {m.VoteAverage}. Режиссёр: {m.Director}\n";
+            }
+            return s;
+        }
+
+        /// <summary>
+        /// Находит фильм по году.
+        /// </summary>
+        /// <param name="year"></param>
+        /// <param name="country"></param>
+        /// <returns></returns>
+        public Movie SearchMovieYear(int year) 
+        { 
+            var l = new List<Movie>();
+
+            foreach(var m in movies)
+            {
+                if(m.Year == year)
+                {              
+                    l.Add(m);
+                }                   
+            }
+            
+            if( l.Count != 0)
+            {
+                var rnd = new Random();
+                var ind = rnd.Next(0, l.Count);
+                return l[ind];
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Находит рандомный фильм по стране.
+        /// </summary>
+        /// <param name="country"></param>
+        /// <returns></returns>
+        public Movie SearchMovieCountry(string country)
+        {
+            var l = new List<Movie>();
+
+            foreach (var m in movies)
+            {
+                if (m.Country == country)
+                {
+                    l.Add(m);
+                }
+            }
+            
+            if(l.Count != 0)
+            {
+                var rnd = new Random();
+                var ind = rnd.Next(0, l.Count);
+
+                return l[ind];
+            }
+
+            return null;
+            
+        }
+
+        /// <summary>
+        /// Находит фильм по оценке.
+        /// </summary>
+        /// <param name="voteAverage"></param>
+        /// <returns></returns>
+        public Movie SearchMovieAverage(double voteAverage)
+        {
+            foreach (var m in movies)
+            {
+                if (m.VoteAverage <= voteAverage)
+                {
+                    return m;
+                }
+
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Находит фильм по режиссеру
+        /// </summary>
+        /// <returns></returns>
+        public Movie SearchMovieDirector(string director)
+        {
+            var l = new List<Movie>();
+            foreach (var m in movies)
+            {
+                if (m.Director.Contains(director))
+                {
+                    l.Add(m);
+                }
+            }
+
+            if(l.Count != 0)
+            {
+                var rnd = new Random();
+                var ind = rnd.Next(0, l.Count);
+
+                return l[ind];
+            }
+
+            return null;           
+        }
     }
 
 }
