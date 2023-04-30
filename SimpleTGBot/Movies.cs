@@ -84,6 +84,23 @@ namespace SimpleTGBot
         }
 
         /// <summary>
+        /// Находит фильм по названию.
+        /// </summary>
+        /// <param name="title"></param>
+        /// <returns></returns>
+        public Movie SearchMovie(string title)
+        {
+            for (int i = 0; i < movies.Count; i++)
+            {
+                if (movies[i].Title.ToLower().Contains(title.ToLower()))
+                {
+                    return movies[i];
+                }
+
+            }
+            return null;
+        }
+        /// <summary>
         /// Находит фильм по году.
         /// </summary>
         /// <param name="year"></param>
@@ -184,6 +201,7 @@ namespace SimpleTGBot
 
             return null;           
         }
+
     }
 
 }
